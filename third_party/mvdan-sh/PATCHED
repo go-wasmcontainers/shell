@@ -1,0 +1,11 @@
+upstream: mvdan.cc/sh/v3 v3.14.1 (BSD-3-Clause, see LICENSE in this directory)
+copied from: the Go module cache, cmd/ removed
+patch: interp/stdin_os.go — newPipe and newStdinFile call pipeFunc, which
+       defaults to os.Pipe; interp.SetPipeFunc replaces it. On GOOS=wasip1
+       os.Pipe is ENOSYS, so the interpreter could not run a pipeline, a
+       here-document or a non-file stdin; the shell passes wasix.Pipe
+       (WASIX fd_pipe).
+to drop it: upstream an equivalent hook (or wasip1 pipes in Go), then
+       remove the replace directive in ../../go.mod and this directory.
+The version on the first line must match go.mod's require of
+mvdan.cc/sh/v3; internal/thirdparty checks it.

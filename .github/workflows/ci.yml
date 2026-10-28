@@ -1,0 +1,119 @@
+name: ci
+on: { push: { branches: [main] }, pull_request: {} }
+permissions: { contents: read }
+env:
+  # The independent WASIX host the guest side is checked against.
+  WASMER_VERSION: v7.5.0
+  WASMER_SHA256: 23f99818deaad93859f8bb8292af81f0c39f25aea19eaccfb72fc7c9e8a3fae9
+jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: actionlint
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color
+
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.27.3' }
+      - run: go version
+      - name: gofmt
+        shell: bash
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then echo "::error::not gofmt-ed:"; echo "$out"; exit 1; fi
+      - run: go vet ./...
+      - run: GOOS=wasip1 GOARCH=wasm go vet ./...
+      - name: go test -race, with coverage
+        shell: bash
+        run: |
+          go test -race -count=1 -coverprofile=cov.out ./...
+          go tool cover -func=cov.out > cov.txt
+          tail -1 cov.txt
+          echo "### Coverage (${{ matrix.os }}, native): $(tail -1 cov.txt | tr -s '\t ' ' ')" >> "$GITHUB_STEP_SUMMARY"
+
+  # The guest side, run on an independent WASIX host: wasmer. The wasix
+  # package's own tests (proc_spawn3, proc_join, fd_pipe, tty) and the
+  # shell end to end (pipelines, redirections, cd, env, exit statuses).
+  wasmer:
+    name: wasip1 under wasmer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.27.3' }
+      - run: go version
+      - name: install wasmer (pinned, checksummed)
+        run: |
+          set -eu
+          curl -fsSL -o /tmp/wasmer.tgz "https://github.com/wasmerio/wasmer/releases/download/${WASMER_VERSION}/wasmer-linux-amd64.tar.gz"
+          echo "${WASMER_SHA256}  /tmp/wasmer.tgz" | sha256sum -c -
+          mkdir -p "$HOME/.wasmer"
+          tar -xzf /tmp/wasmer.tgz -C "$HOME/.wasmer"
+          echo "$HOME/.wasmer/bin" >> "$GITHUB_PATH"
+      - run: wasmer --version
+      - name: build sh for wasip1/wasm
+        run: GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 go build -o sh.wasm ./cmd/sh && ls -l sh.wasm
+      - name: wasix guest tests under wasmer
+        run: GOOS=wasip1 GOARCH=wasm GOWASIRUNTIME=wasmer go test -count=1 -timeout 5m -exec="$(go env GOROOT)/lib/wasm/go_wasip1_wasm_exec" ./wasix/
+      - name: shell end to end under wasmer
+        run: E2E_REQUIRED=1 go test -count=1 -v -timeout 10m ./internal/e2e/
+
+  fuzz:
+    name: fuzz smoke ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The fd-op plan a spawn sends, against a simulated fd table.
+          - { target: FuzzFdOps, pkg: ./wasix }
+          # Struct decoders shared with the engine's host side.
+          - { target: FuzzDecode, pkg: ./wasix }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.27.3' }
+      - run: go version
+      - run: go test -run '^$' -fuzz '^${{ matrix.target }}$' -fuzztime 45s ${{ matrix.pkg }}
+
+  vulns:
+    name: govulncheck, judged by vulngate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.27.3' }
+      - run: go version
+      - name: govulncheck, judged by vulngate
+        run: |
+          set -eu
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install github.com/go-fleettools/fleettools/cmd/vulngate@v0.20.1
+          BIN="$(go env GOPATH)/bin"
+          "$BIN/govulncheck" -format json ./... > /tmp/vuln.json || true
+          test -s /tmp/vuln.json || { echo "::error::govulncheck wrote nothing at all"; exit 1; }
+          "$BIN/vulngate" -go "$(go env GOVERSION)" /tmp/vuln.json
+
+  # The patched copy of mvdan.cc/sh must still pass its own tests.
+  third-party:
+    name: mvdan.cc/sh (patched copy) tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.27.3' }
+      - run: go version
+      - working-directory: third_party/mvdan-sh
+        run: go test -short -count=1 ./interp/ ./expand/ ./syntax/ ./pattern/
