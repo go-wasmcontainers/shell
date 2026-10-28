@@ -114,6 +114,28 @@ the engine's host must not have them):
 - There is no fork or exec in the port: starting a program needs the
   host (hence WASIX).
 
+## OCI: the base image
+
+- OCI image-spec `image-layout.md`: `blobs/<alg>/<encoded>` must match
+  the digest, the `oci-layout` file carries `imageLayoutVersion`, and
+  `index.json` is the entry point. `layer.md`: the layer is a tar
+  changeset whose entries record `mode`, `mtime` and, for symbolic
+  links, `linkname`; whiteouts are `.wh.` files (none here).
+- OCI distribution-spec `spec.md`: HEAD a blob (end-2, 200 if present,
+  404 if not), open an upload with POST `/v2/<name>/blobs/uploads/`
+  (end-4a, 202 + `Location`), finish it with PUT
+  `<location>?digest=<digest>` (end-6, 201), and PUT
+  `/v2/<name>/manifests/<tag>` with the manifest's media type as
+  `Content-Type` (end-7a, 201).
+- distribution's token authentication
+  (<https://distribution.github.io/distribution/spec/auth/token/>):
+  a 401 carries `Bearer realm=…,service=…,scope=…`; the client GETs the
+  realm with `service` and `scope`, reads `token` (or `access_token`)
+  and retries with `Authorization: Bearer`.
+- go-wasmcontainers/engine v0.12.0, `image` (types, `ParseChallenge`,
+  layout and registry pulls) and `rootfs` (layer unpacking): the tests
+  pull the built layout and unpack the layer with them.
+
 ## POSIX shell
 
 - The Open Group Base Specifications Issue 8, XCU chapter 2
@@ -122,3 +144,8 @@ the engine's host must not have them):
   2.9.1.4 (command search through PATH, 127 and an error message when not
   found), 2.9.1.6 (ENOEXEC: run the file as a script with a new shell,
   `$0` may be the command name; otherwise 126).
+- XCU `cat` (<https://pubs.opengroup.org/onlinepubs/9799919799/utilities/cat.html>):
+  "If no file operands are specified, the standard input shall be used",
+  and `-` reads standard input at that point — the rule
+  wasmdesk/coreutils follows (from #15) for cat, head, tail, wc, grep and
+  paste.

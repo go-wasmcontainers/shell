@@ -23,6 +23,34 @@ module (`wasix_32v1`) and ABI — `proc_spawn3`, `proc_join`, `fd_pipe`,
 | [`wasix`](wasix) | `//go:wasmimport` bindings for the subset, with a Go API: `Spawn(name, argv, *Attr)`, `Wait(ctx, pid)`, `Pipe()`, `TtyGet`/`TtySet`. The struct encoders and decoders are portable and fuzzed, for hosts to reuse. |
 | [`cmd/sh`](cmd/sh) | `sh`: the [mvdan.cc/sh](https://github.com/mvdan/sh) v3.14.1 interpreter, whose external commands are started with `proc_spawn3` and waited for with `proc_join`. |
 | [`internal/run`](internal/run) | PATH lookup (`<dir>/<name>`, then `<dir>/<name>.wasm`, the pkgx bottle layout), `#!` scripts, plain scripts (POSIX ENOEXEC rule), the fd plan of a child. |
+| [`cmd/mkimage`](cmd/mkimage) | builds the base image (below) as an OCI image layout, and pushes it to a registry. |
+
+## The base image
+
+`ghcr.io/go-wasmcontainers/shell`, platform `wasip1/wasm`, one layer:
+
+| path | |
+|---|---|
+| `/bin/sh` | this shell |
+| `/bin/coreutils.wasm` | [wasmdesk/coreutils](https://github.com/wasmdesk/coreutils), the multicall module |
+| `/bin/cat`, `/bin/ls`, … | one symbolic link to `coreutils.wasm` per tool (42 tools); the module picks the tool from `argv[0]` |
+| `/etc/passwd`, `/etc/group`, `/etc/os-release` | root only |
+| `/tmp` (1777), `/root` | |
+
+Config: `Cmd ["/bin/sh"]`, `Env PATH=/bin`, `WorkingDir /`, and
+`Shell ["/bin/sh","-c"]`, which is what a shell-form `RUN`, `CMD` or
+`ENTRYPOINT` in a Containerfile runs. The build is reproducible (every
+mtime is the commit time). It is published by the `image` workflow when a
+release tag is pushed (tags `X.Y.Z` and `latest`); every CI run keeps the
+layout as an artifact.
+
+```sh
+go run ./cmd/mkimage --sh sh.wasm --coreutils coreutils.wasm --version 0.1.0 --layout ./layout
+wctr pull oci:./layout:0.1.0
+```
+
+It runs on a host that implements the WASIX process subset (the engine's
+host side is in progress).
 
 ## What sh does
 

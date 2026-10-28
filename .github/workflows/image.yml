@@ -1,0 +1,36 @@
+name: image
+# Publishes the base image ghcr.io/go-wasmcontainers/shell when a release
+# tag vX.Y.Z is pushed: tags X.Y.Z and latest, platform wasip1/wasm.
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+permissions: { contents: read }
+jobs:
+  publish:
+    name: build and push the base image
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.27.3' }
+      - run: go version
+      - name: build sh and coreutils for wasip1/wasm
+        run: |
+          set -eu
+          GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=${GITHUB_REF_NAME}" -o sh.wasm ./cmd/sh
+          GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 go build -trimpath -o coreutils.wasm github.com/wasmdesk/coreutils/cmd/multicall
+      - name: mkimage, layout and push
+        env:
+          # Read by mkimage from standard input, never from its argv.
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          v="${GITHUB_REF_NAME#v}"
+          printf '%s\n' "$REGISTRY_TOKEN" | go run ./cmd/mkimage \
+            --sh sh.wasm --coreutils coreutils.wasm --version "$v" \
+            --created "$(git log -1 --format=%cI)" --layout layout \
+            --push ghcr.io/go-wasmcontainers/shell -t "$v" -t latest \
+            -u "${GITHUB_ACTOR}" --password-stdin
+      - uses: actions/upload-artifact@v7
+        with: { name: shell-image-layout, path: layout }

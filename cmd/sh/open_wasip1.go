@@ -13,6 +13,10 @@ import (
 	"mvdan.cc/sh/v3/interp"
 )
 
+// setupPipes makes the interpreter create its pipes with WASIX fd_pipe:
+// os.Pipe is ENOSYS on wasip1.
+func setupPipes() { interp.SetPipeFunc(wasix.Pipe) }
+
 // openFile opens a redirection target in blocking mode.
 //
 // os.OpenFile on wasip1 puts every file it opens in non-blocking mode and

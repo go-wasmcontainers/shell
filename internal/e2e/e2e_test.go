@@ -83,6 +83,50 @@ func rootfs(t *testing.T) string {
 	return root
 }
 
+// TestBaseImageUnderWasmer builds the base image's root filesystem with
+// mkimage (the real coreutils multicall module, linked under /bin) and
+// runs sh in it. Coreutils reading a pipe is left to the engine's tests:
+// under wasmer a Go child whose stdin is a pipe trips wasmer's fdstat of
+// fds 0-2 (docs/REFERENCES.md); the tbox tests above cover the shell's
+// side of pipes.
+func TestBaseImageUnderWasmer(t *testing.T) {
+	w := wasmer(t)
+	tmp := t.TempDir()
+	sh, cu := filepath.Join(tmp, "sh.wasm"), filepath.Join(tmp, "coreutils.wasm")
+	build(t, "github.com/go-wasmcontainers/shell/cmd/sh", sh)
+	build(t, "github.com/wasmdesk/coreutils/cmd/multicall", cu)
+	root := filepath.Join(tmp, "root")
+	mk := exec.Command("go", "run", "github.com/go-wasmcontainers/shell/cmd/mkimage",
+		"--sh", sh, "--coreutils", cu, "--version", "test", "--rootfs", root)
+	if b, err := mk.CombinedOutput(); err != nil {
+		t.Fatalf("mkimage: %v\n%s", err, b)
+	}
+	cases := []struct{ script, out string }{
+		{"cat /etc/passwd", "root:x:0:0:root:/root:/bin/sh\n"},
+		{"wc -l /etc/passwd", "1 /etc/passwd\n"},
+		{"wc -l < /etc/passwd", "1\n"},
+		{"cd /tmp && touch f && ls", "f\n"},
+		{"mkdir -p /tmp/a/b && cd /tmp/a && pwd && ls", "/tmp/a\nb/\n"}, // this ls marks directories with a slash
+		{"echo hi > /tmp/x && cat /tmp/x && rm /tmp/x && ls /tmp", "hi\n"},
+		{"basename /a/b/c.txt .txt; dirname /a/b/c", "c\n/a/b\n"},
+		{"seq 3 > /tmp/s; sort -r /tmp/s", "3\n2\n1\n"},
+		{"grep root /etc/passwd > /dev/null; echo $?; grep nobody /etc/passwd; echo $?", "0\n1\n"},
+		{"true && false; echo $?", "1\n"},
+	}
+	for _, c := range cases {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		cmd := exec.CommandContext(ctx, w, "run", "--volume", root+":/",
+			"--env", "PATH=/bin", "--env", "PWD=/", filepath.Join(root, "bin", "sh"), "--", "-c", c.script)
+		var out, errb bytes.Buffer
+		cmd.Stdout, cmd.Stderr = &out, &errb
+		err := cmd.Run()
+		cancel()
+		if err != nil || out.String() != c.out {
+			t.Errorf("%q: got %q (%v), want %q; stderr %s", c.script, out.String(), err, c.out, strings.TrimSpace(errb.String()))
+		}
+	}
+}
+
 // TestProbe runs the script in the file $E2E_PROBE and logs its output
 // and time: a tool for investigating, not a check.
 func TestProbe(t *testing.T) {
