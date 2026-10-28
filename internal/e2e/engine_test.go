@@ -25,6 +25,16 @@ import (
 // the same layer mkimage publishes, sh and the real coreutils, pipelines
 // included — what wasmer cannot run (docs/REFERENCES.md).
 func TestBaseImageUnderEngine(t *testing.T) {
+	img := baseImageTree(t)
+	e := wazero.New(wazero.Options{HostModules: []wasi.HostModule{wasi.WASIX}})
+	defer e.Close(context.Background())
+	runCases(t, e, img)
+}
+
+// baseImageTree builds the base image's layer and unpacks it into a
+// frozen engine tree.
+func baseImageTree(t *testing.T) *enginefs.FS {
+	t.Helper()
 	tmp := t.TempDir()
 	shPath, cuPath := filepath.Join(tmp, "sh.wasm"), filepath.Join(tmp, "coreutils.wasm")
 	build(t, "github.com/go-wasmcontainers/shell/cmd/sh", shPath)
@@ -50,9 +60,10 @@ func TestBaseImageUnderEngine(t *testing.T) {
 		t.Fatal(err)
 	}
 	img.Freeze()
-	e := wazero.New(wazero.Options{HostModules: []wasi.HostModule{wasi.WASIX}})
-	defer e.Close(context.Background())
+	return img
+}
 
+func runCases(t *testing.T, e *wazero.Executor, img *enginefs.FS) {
 	cases := []struct {
 		script, out string
 		code        int

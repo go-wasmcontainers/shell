@@ -96,7 +96,9 @@ wasmer run --volume ./rootfs:/ --env PATH=/bin rootfs/bin/sh -- -c 'echo a | cat
   shell end to end (`internal/e2e`);
 - in the engine itself (`TestBaseImageUnderEngine`): the base image's
   layer, sh and the real coreutils, pipelines included (a 20000-line one),
-  which wasmer cannot run.
+  which wasmer cannot run; and `wctr exec c sh -c 'ls /bin | wc -l'` into
+  a running container of the image (`TestExecIntoBaseImage`, engine
+  v0.20.0 and later).
 
 Four defects of the oracle found on the way are listed in
 [docs/REFERENCES.md](docs/REFERENCES.md), with the bibliography (WASIX
