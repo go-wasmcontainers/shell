@@ -49,8 +49,9 @@ go run ./cmd/mkimage --sh sh.wasm --coreutils coreutils.wasm --version 0.1.0 --l
 wctr pull oci:./layout:0.1.0
 ```
 
-It runs on a host that implements the WASIX process subset (the engine's
-host side is in progress).
+It runs on a host that implements the WASIX process subset: the
+go-wasmcontainers engine from v0.17.0 (`wctrd --wasi engine`, the
+default), where pipelines through the coreutils work.
 
 ## What sh does
 
@@ -77,10 +78,10 @@ with its status rather than replacing the shell.
 GOOS=wasip1 GOARCH=wasm go build -o sh ./cmd/sh
 ```
 
-It needs a host that implements the subset: wasmer (used in CI as the
-independent oracle) or the go-wasmcontainers engine (host side in
-progress). Outside such a host, starting a program fails with status 126
-and says why.
+It needs a host that implements the subset: the go-wasmcontainers engine
+(v0.17.0 and later), or wasmer (used in CI as the independent oracle).
+Outside such a host, starting a program fails with status 126 and says
+why. A redirection to `/dev/null` works in a container without `/dev`.
 
 ```sh
 wasmer run --volume ./rootfs:/ --env PATH=/bin rootfs/bin/sh -- -c 'echo a | cat; exit 3'
@@ -92,7 +93,10 @@ wasmer run --volume ./rootfs:/ --env PATH=/bin rootfs/bin/sh -- -c 'echo a | cat
   (fuzzed against a simulated fd table), PATH lookup, the exec handler
   with a fake host, the `sh` command line;
 - under wasmer: the `wasix` package against a real WASIX host, and the
-  shell end to end (`internal/e2e`).
+  shell end to end (`internal/e2e`);
+- in the engine itself (`TestBaseImageUnderEngine`): the base image's
+  layer, sh and the real coreutils, pipelines included (a 20000-line one),
+  which wasmer cannot run.
 
 Four defects of the oracle found on the way are listed in
 [docs/REFERENCES.md](docs/REFERENCES.md), with the bibliography (WASIX

@@ -17,6 +17,13 @@ import (
 // os.Pipe is ENOSYS on wasip1.
 func setupPipes() { interp.SetPipeFunc(wasix.Pipe) }
 
+// devNull stands in for a missing /dev/null.
+type devNull struct{}
+
+func (devNull) Read([]byte) (int, error)    { return 0, io.EOF }
+func (devNull) Write(p []byte) (int, error) { return len(p), nil }
+func (devNull) Close() error                { return nil }
+
 // openFile opens a redirection target in blocking mode.
 //
 // os.OpenFile on wasip1 puts every file it opens in non-blocking mode and
@@ -30,6 +37,11 @@ func openFile(ctx context.Context, name string, flag int, perm os.FileMode) (io.
 		name = path.Join(interp.HandlerCtx(ctx).Dir, name)
 	}
 	fd, err := syscall.Open(name, flag, uint32(perm.Perm()))
+	if err == syscall.ENOENT && name == "/dev/null" {
+		// A WASI container need not have a /dev; `2>/dev/null` is too
+		// common to fail on. Reads see end of file, writes vanish.
+		return devNull{}, nil
+	}
 	if err != nil {
 		return nil, &os.PathError{Op: "open", Path: name, Err: err}
 	}
