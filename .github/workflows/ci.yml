@@ -35,6 +35,9 @@ jobs:
           if [ -n "$out" ]; then echo "::error::not gofmt-ed:"; echo "$out"; exit 1; fi
       - run: go vet ./...
       - run: GOOS=wasip1 GOARCH=wasm go vet ./...
+      # Everything also builds for js/wasm, where the browser playground
+      # may load the packages (sh itself runs as a wasip1 module there).
+      - run: GOOS=js GOARCH=wasm go build ./... && GOOS=js GOARCH=wasm go vet ./...
       - name: go test -race, with coverage
         shell: bash
         run: |
@@ -67,8 +70,29 @@ jobs:
         run: GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 go build -o sh.wasm ./cmd/sh && ls -l sh.wasm
       - name: wasix guest tests under wasmer
         run: GOOS=wasip1 GOARCH=wasm GOWASIRUNTIME=wasmer go test -count=1 -timeout 5m -exec="$(go env GOROOT)/lib/wasm/go_wasip1_wasm_exec" ./wasix/
-      - name: shell end to end under wasmer
+      - name: shell end to end under wasmer (tbox, then the base image)
         run: E2E_REQUIRED=1 go test -count=1 -v -timeout 10m ./internal/e2e/
+
+  # The base image as an OCI image layout, kept as an artifact of the run.
+  # Publishing to ghcr.io happens in image.yml, on a release tag.
+  base-image:
+    name: base image (OCI layout)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.27.3' }
+      - run: go version
+      - name: build sh and coreutils for wasip1/wasm
+        run: |
+          set -eu
+          GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 go build -trimpath -o sh.wasm ./cmd/sh
+          GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 go build -trimpath -o coreutils.wasm github.com/wasmdesk/coreutils/cmd/multicall
+          ls -l sh.wasm coreutils.wasm
+      - name: mkimage
+        run: go run ./cmd/mkimage --sh sh.wasm --coreutils coreutils.wasm --version "ci-${GITHUB_SHA::12}" --created "$(git log -1 --format=%cI)" --layout layout
+      - uses: actions/upload-artifact@v7
+        with: { name: shell-image-layout, path: layout, retention-days: 7 }
 
   fuzz:
     name: fuzz smoke ${{ matrix.target }}

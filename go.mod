@@ -3,15 +3,20 @@ module github.com/go-wasmcontainers/shell
 go 1.27.3
 
 require (
+	github.com/go-wasmcontainers/engine v0.12.0
 	github.com/spf13/cobra v1.10.2
+	github.com/wasmdesk/coreutils v0.0.0-20261028083027-49bb4363eb7f
 	golang.org/x/mod v0.42.0
 	mvdan.cc/sh/v3 v3.14.1
 )
 
 require (
+	github.com/go-regexp/engine v0.3.2 // indirect
+	github.com/go-ruby-regexp/regexp v0.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/klauspost/compress v1.20.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/term v0.45.0 // indirect
 )
 

@@ -13,7 +13,6 @@ import (
 	"github.com/go-wasmcontainers/shell/internal/shell"
 	"github.com/go-wasmcontainers/shell/wasix"
 	"github.com/spf13/cobra"
-	"mvdan.cc/sh/v3/interp"
 )
 
 // version is set by the release build (-ldflags -X main.version=...).
@@ -94,7 +93,7 @@ func RootCmd() *cobra.Command {
 }
 
 func main() {
-	interp.SetPipeFunc(wasix.Pipe)
+	setupPipes()
 	if err := RootCmd().Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "sh:", err)
 		osExit(2)
