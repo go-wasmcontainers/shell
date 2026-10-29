@@ -3,7 +3,7 @@ module github.com/go-wasmcontainers/shell
 go 1.27.3
 
 require (
-	github.com/go-wasmcontainers/engine v0.20.0
+	github.com/go-wasmcontainers/engine v0.26.0
 	github.com/spf13/cobra v1.10.2
 	github.com/wasmdesk/coreutils v0.4.0
 	golang.org/x/mod v0.42.0

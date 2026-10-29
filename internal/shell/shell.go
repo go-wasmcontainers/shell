@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/go-wasmcontainers/shell/internal/editline"
 	"github.com/go-wasmcontainers/shell/internal/run"
 	"mvdan.cc/sh/v3/expand"
 	"mvdan.cc/sh/v3/interp"
@@ -31,6 +32,18 @@ type Config struct {
 	Open interp.OpenHandlerFunc
 	// Trace, if set, receives a line per program started.
 	Trace io.Writer
+	// Terminal, if set and stdin is a terminal, gives the interactive
+	// shell its line editor (arrow keys, history) instead of the
+	// terminal's own line mode.
+	Terminal Terminal
+}
+
+// Terminal is the control of stdin's terminal the line editor needs.
+type Terminal interface {
+	// Raw turns echo and line mode off; restore turns them back on.
+	Raw() (restore func(), err error)
+	// Cols is the terminal's width (0 if unknown).
+	Cols() int
 }
 
 // Options are the sh invocation options.
@@ -179,6 +192,43 @@ func (b byteReader) Read(p []byte) (int, error) {
 	return b.r.Read(p)
 }
 
+// lineSource feeds the parser the lines of the line editor, one line at
+// a time, the terminal in raw mode only while one is being typed: the
+// commands it runs see the terminal as they expect it, in line mode. If
+// the terminal cannot be switched, it falls back to the terminal's line
+// mode (the prompt printed, the bytes read as they come).
+type lineSource struct {
+	ed     *editline.Editor
+	term   Terminal
+	plain  io.Reader
+	stderr io.Writer
+	prompt string
+	buf    []byte
+}
+
+func (l *lineSource) Read(p []byte) (int, error) {
+	if len(l.buf) == 0 {
+		if l.ed == nil {
+			return l.plain.Read(p)
+		}
+		restore, err := l.term.Raw()
+		if err != nil {
+			l.ed = nil
+			fmt.Fprint(l.stderr, l.prompt)
+			return l.plain.Read(p)
+		}
+		line, err := l.ed.ReadLine(l.prompt)
+		restore()
+		if err != nil {
+			return 0, err
+		}
+		l.buf = []byte(line + "\n")
+	}
+	n := copy(p, l.buf)
+	l.buf = l.buf[n:]
+	return n, nil
+}
+
 // interactive reads commands from stdin, one complete command at a time,
 // printing $PS1 (default "$ ") when stdin is a terminal.
 func (s *Shell) interactive(ctx context.Context, o Options, env expand.Environ, params []string) int {
@@ -186,6 +236,19 @@ func (s *Shell) interactive(ctx context.Context, o Options, env expand.Environ, 
 	if err != nil {
 		fmt.Fprintln(s.cfg.Stderr, "sh:", err)
 		return 2
+	}
+	// One byte at a time, like other shells on unseekable input: what
+	// the parser has not consumed stays for the commands (`read`, a
+	// child's stdin) instead of sitting in a read-ahead buffer.
+	var in io.Reader = byteReader{s.cfg.Stdin}
+	var src *lineSource
+	if s.cfg.IsTTY && s.cfg.Terminal != nil {
+		src = &lineSource{
+			ed:    &editline.Editor{In: s.cfg.Stdin, Out: s.cfg.Stderr, Cols: s.cfg.Terminal.Cols},
+			term:  s.cfg.Terminal,
+			plain: in, stderr: s.cfg.Stderr,
+		}
+		in = src
 	}
 	prompt := func(more bool) {
 		if !s.cfg.IsTTY && !o.Interactive {
@@ -198,12 +261,12 @@ func (s *Shell) interactive(ctx context.Context, o Options, env expand.Environ, 
 		if v := r.Vars["PS1"]; !more && v.IsSet() {
 			ps = v.String()
 		}
+		if src != nil && src.ed != nil {
+			src.prompt = ps // the editor shows it
+			return
+		}
 		fmt.Fprint(s.cfg.Stderr, ps)
 	}
-	// One byte at a time, like other shells on unseekable input: what
-	// the parser has not consumed stays for the commands (`read`, a
-	// child's stdin) instead of sitting in a read-ahead buffer.
-	in := byteReader{s.cfg.Stdin}
 	status := 0
 	prompt(false)
 	for {
@@ -212,6 +275,11 @@ func (s *Shell) interactive(ctx context.Context, o Options, env expand.Environ, 
 		parser := syntax.NewParser()
 		failed := false
 		for stmts, err := range parser.InteractiveSeq(in) {
+			if errors.Is(err, editline.ErrInterrupt) {
+				status = 130 // ^C abandons the command being typed
+				failed = true
+				break
+			}
 			if err != nil {
 				fmt.Fprintln(s.cfg.Stderr, "sh:", err)
 				status = 2
