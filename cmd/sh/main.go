@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-wasmcontainers/shell/internal/run"
 	"github.com/go-wasmcontainers/shell/internal/shell"
-	"github.com/go-wasmcontainers/shell/wasix"
 	"github.com/spf13/cobra"
 )
 
@@ -66,8 +65,9 @@ func RootCmd() *cobra.Command {
 			if os.Getenv("SH_TRACE_SPAWN") != "" {
 				cfg.Trace = cmd.ErrOrStderr()
 			}
-			if t, err := wasix.TtyGet(); err == nil {
+			if t, err := ttyGet(); err == nil {
 				cfg.IsTTY = t.StdinTTY
+				cfg.Terminal = wasixTerm{}
 			}
 			code := shell.New(cfg).Main(context.Background(), shell.Options{
 				Command: cmdFlag, Set: set, Interactive: interFlag, ReadStdin: stdinFlag,

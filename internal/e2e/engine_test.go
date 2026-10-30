@@ -33,8 +33,18 @@ func TestBaseImageUnderEngine(t *testing.T) {
 
 // baseImageTree builds the base image's layer and unpacks it into a
 // frozen engine tree.
+//
+// SHELL_E2E_LAYER names a layer file (tar+gzip) to use instead, e.g. the
+// published image's, to run these tests against a release.
 func baseImageTree(t *testing.T) *enginefs.FS {
 	t.Helper()
+	if p := os.Getenv("SHELL_E2E_LAYER"); p != "" {
+		layer, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return treeOf(t, layer)
+	}
 	tmp := t.TempDir()
 	shPath, cuPath := filepath.Join(tmp, "sh.wasm"), filepath.Join(tmp, "coreutils.wasm")
 	build(t, "github.com/go-wasmcontainers/shell/cmd/sh", shPath)
@@ -55,6 +65,11 @@ func baseImageTree(t *testing.T) *enginefs.FS {
 	if err != nil {
 		t.Fatal(err)
 	}
+	return treeOf(t, layer)
+}
+
+func treeOf(t *testing.T, layer []byte) *enginefs.FS {
+	t.Helper()
 	img := enginefs.New()
 	if err := img.ApplyLayer(bytes.NewReader(layer), image.MediaTypeOCILayerGz, "", enginefs.NewBudget(enginefs.DefaultLimits)); err != nil {
 		t.Fatal(err)

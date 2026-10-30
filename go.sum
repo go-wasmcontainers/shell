@@ -7,8 +7,8 @@ github.com/go-regexp/engine v0.3.2 h1:zublnb1Vf5Cclh59+cp35htv2aATddBMNp5VwMAeZc
 github.com/go-regexp/engine v0.3.2/go.mod h1:fWnPvSuE4HIVpBQIHMiaPMEE7InDc00KeoPr/QNFGwA=
 github.com/go-ruby-regexp/regexp v0.1.1 h1:gqueGLmsUVVleZMzEGKax2YfpJz+aLQqdbsHp+OB3CA=
 github.com/go-ruby-regexp/regexp v0.1.1/go.mod h1:RhMJEXTJUHXcrqbnS5cVSoEfLC1SBm4G+dMkhVB96RM=
-github.com/go-wasmcontainers/engine v0.20.0 h1:YyxlD9G0vuFc9RKo4FHHZZius/eAOAPgYrN+8EZsj8U=
-github.com/go-wasmcontainers/engine v0.20.0/go.mod h1:l9TXdve2XhKc7tVpzf0jRYh7c7+DoSlgQmUKRzDXv4A=
+github.com/go-wasmcontainers/engine v0.26.0 h1:amnTwsZ2bSShCn51Yq2R/mO7w+yJYYWcD4II3RoDbZ8=
+github.com/go-wasmcontainers/engine v0.26.0/go.mod h1:l9TXdve2XhKc7tVpzf0jRYh7c7+DoSlgQmUKRzDXv4A=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=

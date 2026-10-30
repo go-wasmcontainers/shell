@@ -3,6 +3,8 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -65,6 +67,69 @@ func TestExecIntoBaseImage(t *testing.T) {
 	}
 	if out, code := run("sh", "-c", "echo $HOSTNAME | wc -c; exit 5"); strings.TrimSpace(out) != "13" || code != 5 {
 		t.Errorf("hostname and exit status: %q %d", out, code)
+	}
+
+	// An interactive shell on a terminal (`wctr exec -it c sh`): the keys
+	// arrive as a terminal sends them, Enter being a carriage return.
+	tty := func(input string) (string, int) {
+		t.Helper()
+		x, err := m.CreateExec("c", container.ExecConfig{Cmd: []string{"sh"}, Tty: true, AttachStdin: true, AttachStdout: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out syncBuf
+		// One key at a time, a person's pace, through a pipe that stays
+		// open until the shell ends (a terminal does not hang up).
+		pr, pw := io.Pipe()
+		defer pw.Close()
+		go func() {
+			// Wait for the first prompt: keys typed before the shell
+			// switches the terminal to raw mode are held in the engine's
+			// line buffer (engine ldisc: the pending line is not handed
+			// over when line mode is turned off).
+			// The same holds for keys typed while a command runs, so each
+			// line waits for a fresh prompt ("$ " and an empty line).
+			// SHELL_E2E_NOWAIT=1 types straight on (needs engine #45).
+			for i, line := range strings.SplitAfter(input, "\r") {
+				for os.Getenv("SHELL_E2E_NOWAIT") == "" && strings.Count(out.String(), "$ \x1b[K") <= i {
+					time.Sleep(5 * time.Millisecond)
+				}
+				for j := range len(line) {
+					time.Sleep(5 * time.Millisecond)
+					if _, err := pw.Write([]byte{line[j]}); err != nil {
+						return
+					}
+				}
+			}
+		}()
+		if err := m.StartExec(ctx, x, container.ExecIO{Stdin: pr, Stdout: &out}); err != nil {
+			t.Fatal(err)
+		}
+		select {
+		case <-x.Done():
+		case <-time.After(2 * time.Minute):
+			t.Fatalf("%q did not end; output %q", input, out.String())
+		}
+		return out.String(), x.Info().ExitCode
+	}
+	for _, c := range []struct {
+		input, want string
+		code        int
+	}{
+		{"exit 4\r", "", 4},
+		{"echo a | cat\rls /etc\rexit 0\r", "os-release", 0},
+		{"echo a | cat\recho b | cat\rls /etc\rexit\r", "os-release", 0},
+		{"false\r\x04", "", 1},
+		{"true\r\x04", "", 0},
+		{"sh -c 'exit 3'\r\x04", "", 3},
+		// The dashboard's session: a pipeline, then a program that fails.
+		{"ls /bin | wc -l\rls /nope; echo status=$?\rls /nope\r\x04", "status=1", 1},
+		{"\x1b[Dexit 4\r", "", 4},
+	} {
+		out, code := tty(c.input)
+		if code != c.code || !strings.Contains(out, c.want) || strings.Contains(out, "not found") {
+			t.Errorf("tty %q: exit %d, want %d; output %q", c.input, code, c.code, out)
+		}
 	}
 }
 
