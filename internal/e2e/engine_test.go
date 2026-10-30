@@ -94,6 +94,11 @@ func runCases(t *testing.T, e *wazero.Executor, img *enginefs.FS) {
 		{"nosuch 2>/dev/null; echo $?", "127\n", 0},
 		{"x=$(echo hi | cat); echo \"[$x]\"", "[hi]\n", 0},
 		{"false | true; echo $?", "0\n", 0},
+		// coreutils v0.5: ls FILE (compose's readiness probe), grep -r/-l/-c,
+		// tee to a file.
+		{"ls /etc/passwd", "/etc/passwd\n", 0},
+		{"grep -rl root /etc; grep -c root /etc/passwd", "/etc/group\n/etc/passwd\n1\n", 0}, // -c counts lines
+		{"echo hi | tee /tmp/t >/dev/null; cat /tmp/t", "hi\n", 0},
 	}
 	for _, c := range cases {
 		t.Run(c.script, func(t *testing.T) {

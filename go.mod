@@ -5,7 +5,7 @@ go 1.27.3
 require (
 	github.com/go-wasmcontainers/engine v0.26.0
 	github.com/spf13/cobra v1.10.2
-	github.com/wasmdesk/coreutils v0.4.0
+	github.com/wasmdesk/coreutils v0.4.1-0.20261030075154-3dd06eef2066
 	golang.org/x/mod v0.42.0
 	mvdan.cc/sh/v3 v3.14.1
 )
