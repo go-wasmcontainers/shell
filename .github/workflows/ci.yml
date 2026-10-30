@@ -45,6 +45,18 @@ jobs:
           go tool cover -func=cov.out > cov.txt
           tail -1 cov.txt
           echo "### Coverage (${{ matrix.os }}, native): $(tail -1 cov.txt | tr -s '\t ' ' ')" >> "$GITHUB_STEP_SUMMARY"
+      # The nested module github.com/go-wasmcontainers/shell/wasix (wasix,
+      # wasix/exec): no dependencies, its own go.mod; wasix/exec at 100%.
+      - name: wasix module (vet, test -race, wasix/exec coverage gate)
+        shell: bash
+        working-directory: wasix
+        run: |
+          go vet ./...
+          GOOS=wasip1 GOARCH=wasm go vet ./...
+          GOOS=js GOARCH=wasm go build ./...
+          go test -race -count=1 -coverprofile=cov.out ./...
+          cov=$(go tool cover -func=cov.out | grep -e '/exec/' | grep -v -e '100.0%' || true)
+          if [ -n "$cov" ]; then echo "::error::wasix/exec below 100%:"; echo "$cov"; exit 1; fi
 
   # The guest side, run on an independent WASIX host: wasmer. The wasix
   # package's own tests (proc_spawn3, proc_join, fd_pipe, tty) and the
@@ -69,7 +81,8 @@ jobs:
       - name: build sh for wasip1/wasm
         run: GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 go build -o sh.wasm ./cmd/sh && ls -l sh.wasm
       - name: wasix guest tests under wasmer
-        run: GOOS=wasip1 GOARCH=wasm GOWASIRUNTIME=wasmer go test -count=1 -timeout 5m -exec="$(go env GOROOT)/lib/wasm/go_wasip1_wasm_exec" ./wasix/
+        working-directory: wasix
+        run: GOOS=wasip1 GOARCH=wasm GOWASIRUNTIME=wasmer go test -count=1 -timeout 5m -exec="$(go env GOROOT)/lib/wasm/go_wasip1_wasm_exec" .
       - name: shell end to end under wasmer (tbox, then the base image)
         run: E2E_REQUIRED=1 go test -count=1 -v -timeout 10m ./internal/e2e/
 
@@ -102,15 +115,16 @@ jobs:
       matrix:
         include:
           # The fd-op plan a spawn sends, against a simulated fd table.
-          - { target: FuzzFdOps, pkg: ./wasix }
+          - { target: FuzzFdOps, pkg: . }
           # Struct decoders shared with the engine's host side.
-          - { target: FuzzDecode, pkg: ./wasix }
+          - { target: FuzzDecode, pkg: . }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with: { go-version: '1.27.3' }
       - run: go version
-      - run: go test -run '^$' -fuzz '^${{ matrix.target }}$' -fuzztime 45s ${{ matrix.pkg }}
+      - working-directory: wasix
+        run: go test -run '^$' -fuzz '^${{ matrix.target }}$' -fuzztime 45s ${{ matrix.pkg }}
 
   vulns:
     name: govulncheck, judged by vulngate
