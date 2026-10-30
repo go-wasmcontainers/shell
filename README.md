@@ -20,9 +20,10 @@ module (`wasix_32v1`) and ABI — `proc_spawn3`, `proc_join`, `fd_pipe`,
 
 | | |
 |---|---|
-| [`wasix`](wasix) | `//go:wasmimport` bindings for the subset, with a Go API: `Spawn(name, argv, *Attr)`, `Wait(ctx, pid)`, `Pipe()`, `TtyGet`/`TtySet`. The struct encoders and decoders are portable and fuzzed, for hosts to reuse. |
+| [`wasix`](wasix) | `//go:wasmimport` bindings for the subset, with a Go API: `Spawn(name, argv, *Attr)`, `Wait(ctx, pid)`, `Pipe()`, `TtyGet`/`TtySet`. The struct encoders and decoders are portable and fuzzed, for hosts to reuse. A **module of its own**, `github.com/go-wasmcontainers/shell/wasix`, with no dependencies, so programs can import it without the shell. |
+| [`wasix/exec`](wasix/exec) | `os/exec` for WASI containers: `Command`, `Cmd` (`Path Args Env Dir Stdin Stdout Stderr`), `Start`/`Wait`/`WaitContext`/`Run`/`Output`/`CombinedOutput`, `StdinPipe`/`StdoutPipe`/`StderrPipe`, `ExitError`, `LookPath` (`<dir>/<name>` then `<dir>/<name>.wasm`). A pluggable `System` (WASIX by default) for tests and tracing. No `Kill`/`CommandContext`: signals are not in the WASIX subset. `sh` itself starts its children through it. |
 | [`cmd/sh`](cmd/sh) | `sh`: the [mvdan.cc/sh](https://github.com/mvdan/sh) v3.14.1 interpreter, whose external commands are started with `proc_spawn3` and waited for with `proc_join`. |
-| [`internal/run`](internal/run) | PATH lookup (`<dir>/<name>`, then `<dir>/<name>.wasm`, the pkgx bottle layout), `#!` scripts, plain scripts (POSIX ENOEXEC rule), the fd plan of a child. |
+| [`internal/run`](internal/run) | the shell's exec handler: PATH lookup (`wasix/exec`'s rule, the pkgx bottle layout), `#!` scripts, plain scripts (POSIX ENOEXEC rule), children started through `wasix/exec`. |
 | [`cmd/mkimage`](cmd/mkimage) | builds the base image (below) as an OCI image layout, and pushes it to a registry. |
 
 ## The base image

@@ -13,6 +13,7 @@ require (
 require (
 	github.com/go-regexp/engine v0.3.2 // indirect
 	github.com/go-ruby-regexp/regexp v0.1.1 // indirect
+	github.com/go-wasmcontainers/shell/wasix v0.0.0
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.20.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
@@ -26,3 +27,5 @@ require (
 // interpreter can create pipes on GOOS=wasip1, where os.Pipe is ENOSYS.
 // See third_party/mvdan-sh/PATCHED and docs/REFERENCES.md.
 replace mvdan.cc/sh/v3 => ./third_party/mvdan-sh
+
+replace github.com/go-wasmcontainers/shell/wasix => ./wasix
