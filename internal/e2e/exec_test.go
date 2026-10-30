@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -83,22 +82,15 @@ func TestExecIntoBaseImage(t *testing.T) {
 		pr, pw := io.Pipe()
 		defer pw.Close()
 		go func() {
-			// Wait for the first prompt: keys typed before the shell
-			// switches the terminal to raw mode are held in the engine's
-			// line buffer (engine ldisc: the pending line is not handed
-			// over when line mode is turned off).
-			// The same holds for keys typed while a command runs, so each
-			// line waits for a fresh prompt ("$ " and an empty line).
-			// SHELL_E2E_NOWAIT=1 types straight on (needs engine #45).
-			for i, line := range strings.SplitAfter(input, "\r") {
-				for os.Getenv("SHELL_E2E_NOWAIT") == "" && strings.Count(out.String(), "$ \x1b[K") <= i {
-					time.Sleep(5 * time.Millisecond)
-				}
-				for j := range len(line) {
-					time.Sleep(5 * time.Millisecond)
-					if _, err := pw.Write([]byte{line[j]}); err != nil {
-						return
-					}
+			// Straight on, from the start: keys typed before the first
+			// prompt, or while a command runs, sit in the engine's line
+			// buffer and are handed over when the shell's line editor
+			// turns line mode off (engine v0.29.2, #45). No waiting for
+			// prompts: that is what this checks.
+			for i := range len(input) {
+				time.Sleep(5 * time.Millisecond)
+				if _, err := pw.Write([]byte{input[i]}); err != nil {
+					return
 				}
 			}
 		}()
