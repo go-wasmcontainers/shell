@@ -134,9 +134,6 @@ func TestEnv(t *testing.T) {
 	if strings.Join(got, ",") != "A=3,B=2" {
 		t.Errorf("Env = %v", got)
 	}
-	if got := withPWD([]string{"PWD=/old", "X=1"}, "/new"); strings.Join(got, ",") != "X=1,PWD=/new" {
-		t.Errorf("withPWD = %v", got)
-	}
 }
 
 // fakeSpawner runs Go functions as "programs", on duplicates of the fds

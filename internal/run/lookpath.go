@@ -5,12 +5,13 @@ package run
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"io/fs"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/go-wasmcontainers/shell/wasix/exec"
 )
 
 // FS is the filesystem view the lookups use; [OSFS] in the real shell.
@@ -43,10 +44,10 @@ func (OSFS) Head(name string, n int) ([]byte, error) {
 
 // WasmExt is the suffix of program files in the pkgx bottle layout
 // (bin/<name>.wasm, provided as bin/<name>).
-const WasmExt = ".wasm"
+const WasmExt = exec.WasmExt
 
 // ErrNotFound is returned when no program of that name is on PATH.
-var ErrNotFound = errors.New("not found")
+var ErrNotFound = exec.ErrNotFound
 
 // Abs makes name absolute against dir and cleans it.
 func Abs(dir, name string) string {
@@ -64,37 +65,10 @@ func Abs(dir, name string) string {
 //
 // The paths are resolved by the WASI host inside the container's root
 // filesystem: a guest cannot name a host path.
+//
+// It is wasix/exec's rule (exec.Find), on the shell's FS.
 func LookPath(fsys FS, dir, pathEnv, name string) (string, error) {
-	if name == "" {
-		return "", ErrNotFound
-	}
-	try := func(p string) (string, bool) {
-		for _, c := range []string{p, p + WasmExt} {
-			if strings.HasSuffix(p, WasmExt) && c != p {
-				break
-			}
-			fi, err := fsys.Stat(c)
-			if err == nil && fi.Mode().IsRegular() {
-				return c, true
-			}
-		}
-		return "", false
-	}
-	if strings.Contains(name, "/") {
-		if p, ok := try(Abs(dir, name)); ok {
-			return p, nil
-		}
-		return "", ErrNotFound
-	}
-	for _, d := range strings.Split(pathEnv, ":") {
-		if d == "" || d == "." {
-			d = dir
-		}
-		if p, ok := try(Abs(dir, path.Join(d, name))); ok {
-			return p, nil
-		}
-	}
-	return "", ErrNotFound
+	return exec.Find(fsys.Stat, dir, pathEnv, name)
 }
 
 // Kind is how a program file is started.
