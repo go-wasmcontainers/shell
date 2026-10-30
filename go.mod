@@ -4,8 +4,9 @@ go 1.27.3
 
 require (
 	github.com/go-wasmcontainers/engine v0.26.0
+	github.com/go-wasmcontainers/shell/wasix v0.0.0
 	github.com/spf13/cobra v1.10.2
-	github.com/wasmdesk/coreutils v0.4.1-0.20261030140042-2888985c3462
+	github.com/wasmdesk/coreutils v0.5.0
 	golang.org/x/mod v0.42.0
 	mvdan.cc/sh/v3 v3.14.1
 )
@@ -13,7 +14,6 @@ require (
 require (
 	github.com/go-regexp/engine v0.3.2 // indirect
 	github.com/go-ruby-regexp/regexp v0.1.1 // indirect
-	github.com/go-wasmcontainers/shell/wasix v0.0.0
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.20.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
