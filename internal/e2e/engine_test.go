@@ -99,6 +99,11 @@ func runCases(t *testing.T, e *wazero.Executor, img *enginefs.FS) {
 		{"ls /etc/passwd", "/etc/passwd\n", 0},
 		{"grep -rl root /etc; grep -c root /etc/passwd", "/etc/group\n/etc/passwd\n1\n", 0}, // -c counts lines
 		{"echo hi | tee /tmp/t >/dev/null; cat /tmp/t", "hi\n", 0},
+		// coreutils v0.6: programs started by coreutils through WASIX.
+		{"env -i PATH=/bin X=1 sh -c 'echo $X; env' | sort", "1\nPATH=/bin\nPWD=/\nX=1\n", 0},
+		{"printf 'a b\\nc\\n' | xargs -n1 echo +", "+ a\n+ b\n+ c\n", 0},
+		{"find /etc -name passwd -exec cat {} ';'; find /etc -name 'g*' -exec ls {} +", "root:x:0:0:root:/root:/bin/sh\n/etc/group\n", 0},
+		{"echo x | xargs nosuch; echo $?", "127\n", 0},
 	}
 	for _, c := range cases {
 		t.Run(c.script, func(t *testing.T) {
