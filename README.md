@@ -33,7 +33,7 @@ module (`wasix_32v1`) and ABI — `proc_spawn3`, `proc_join`, `fd_pipe`,
 | path | |
 |---|---|
 | `/bin/sh` | this shell |
-| `/bin/coreutils.wasm` | [wasmdesk/coreutils](https://github.com/wasmdesk/coreutils) (v0.6 candidate), the multicall module; `env CMD`, `xargs` and `find -exec` start programs through [`wasix/exec`](wasix/exec) |
+| `/bin/coreutils.wasm` | [wasmdesk/coreutils](https://github.com/wasmdesk/coreutils) v0.6.0, the multicall module; `env CMD`, `xargs` and `find -exec` start programs through [`wasix/exec`](wasix/exec) |
 | `/bin/cat`, `/bin/ls`, … | one symbolic link to `coreutils.wasm` per tool (50 tools, including `hostname`, `uname`, `id`, `whoami`, `clear`, `tee`, `which`, `xargs`); the module picks the tool from `argv[0]` |
 | `/etc/passwd`, `/etc/group`, `/etc/os-release` | root only |
 | `/tmp` (1777), `/root` | |
