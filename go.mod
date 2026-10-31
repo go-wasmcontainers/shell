@@ -6,7 +6,7 @@ require (
 	github.com/go-wasmcontainers/engine v0.29.2
 	github.com/go-wasmcontainers/shell/wasix v0.1.0
 	github.com/spf13/cobra v1.10.2
-	github.com/wasmdesk/coreutils v0.5.1-0.20261031200158-fe13df492e30
+	github.com/wasmdesk/coreutils v0.6.0
 	golang.org/x/mod v0.42.0
 	mvdan.cc/sh/v3 v3.14.1
 )
