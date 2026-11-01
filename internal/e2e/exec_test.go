@@ -117,6 +117,13 @@ func TestExecIntoBaseImage(t *testing.T) {
 		// The dashboard's session: a pipeline, then a program that fails.
 		{"ls /bin | wc -l\rls /nope; echo status=$?\rls /nope\r\x04", "status=1", 1},
 		{"\x1b[Dexit 4\r", "", 4},
+		// Tab: a command word completes to a builtin or a program on PATH
+		// (ec -> "echo "), a later word to a file name, a directory with
+		// its slash (/e -> /etc/). The typed lines never contain the
+		// output checked here.
+		{"ec\t'a'b\rexit 0\r", "ab\r\n", 0},
+		{"ls /e\t\rexit 0\r", "os-release", 0},
+		{"ls /et\tos-r\t\rexit 0\r", "/etc/os-release", 0},
 	} {
 		out, code := tty(c.input)
 		if code != c.code || !strings.Contains(out, c.want) || strings.Contains(out, "not found") {

@@ -5,8 +5,11 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/go-wasmcontainers/shell/internal/complete"
 )
 
 // fakeTerm records the mode switches of the line editor.
@@ -90,6 +93,30 @@ func TestLineEditorEOF(t *testing.T) {
 		if _, _, code := interactive(t, &fakeTerm{}, c.in); code != c.code {
 			t.Errorf("%q: exit %d, want %d", c.in, code, c.code)
 		}
+	}
+}
+
+// Tab completes from the live state of the shell: the working directory
+// (file names), PATH (programs) and the functions defined so far.
+func TestTabCompletion(t *testing.T) {
+	dir, bin := t.TempDir(), t.TempDir()
+	for _, f := range []string{filepath.Join(dir, "unique-file"), filepath.Join(bin, "zzprog")} {
+		if err := os.WriteFile(f, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var out, errb bytes.Buffer
+	sh := New(Config{
+		Stdin:  file(t, "myfn() { echo fn; }\rmyf\t\recho uniq\t\rzzp\t\x03PATH="+bin+"\rzzp\t\x03exit 0\r"),
+		Stdout: &out, Stderr: &errb, Env: []string{"PATH=/nonexistent"}, Dir: dir,
+		IsTTY: true, Terminal: &fakeTerm{}, DirFS: complete.OSFS{},
+	})
+	if code := sh.Main(context.Background(), Options{}, nil); code != 0 || out.String() != "fn\nunique-file\n" {
+		t.Errorf("out %q exit %d; stderr %q", out.String(), code, errb.String())
+	}
+	// PATH is read at each Tab: the program is completed once PATH is set.
+	if !strings.Contains(errb.String(), "zzprog ") {
+		t.Errorf("stderr %q", errb.String())
 	}
 }
 
