@@ -61,14 +61,18 @@ default), where pipelines through the coreutils work.
   directory both as a `chdir` fd op and as `$PWD`, which is where Go's
   wasip1 port reads it), exported variables, `$?`, `set -e/-u/-x/-f/-a`,
   `exec`, `sh -c`, `sh file`, `sh -s`, an interactive prompt on a TTY.
-- A line editor on a terminal (`wctr exec -it c sh`): the arrow keys,
-  Home/End, Backspace/Delete, history (Up/Down, ^P/^N), ^A ^E ^U ^K ^W ^L,
-  ^C to abandon a line, ^D on an empty line to end the shell with the
-  last command's status. The terminal is in raw mode (WASIX `tty_set`)
-  only while a line is typed; commands run with it in line mode. Unknown
-  keys and escape sequences are ignored, never inserted. No Tab
-  completion yet; one column per character is assumed, and a line wider
-  than the screen scrolls sideways.
+- A line editor on a terminal (`wctr exec -it c sh`), the engine's own:
+  `github.com/go-wasmcontainers/engine/lineedit` (a module of its own,
+  standard library only, so sh.wasm does not link net/http), the editor
+  `wctr` uses. The arrow keys, Home/End, Backspace/Delete, history
+  (Up/Down, ^P/^N), reverse search (^R), ^A ^E ^U ^K ^W ^L, ^C to abandon a
+  line, ^D on an empty line to end the shell with the last command's
+  status. The terminal is in raw mode (WASIX `tty_set`) only while a line
+  is typed; commands run with it in line mode. Unknown keys and escape
+  sequences are ignored, never inserted. Wide (CJK, emoji) and combining
+  characters are counted in columns; a line wider than the screen wraps.
+  No Tab completion yet: the core has the hook, sh does not pass a
+  completer.
 - Exit statuses as POSIX says: 127 not found, 126 found but cannot run,
   128+n for a signal reported by the host.
 - Empty arguments and arguments with newlines reach the child intact

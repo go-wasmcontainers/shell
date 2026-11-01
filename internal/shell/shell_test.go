@@ -70,7 +70,7 @@ func TestLineEditor(t *testing.T) {
 	if term.raw == 0 || term.raw != term.restored {
 		t.Errorf("raw %d restored %d", term.raw, term.restored)
 	}
-	if !strings.Contains(errb, "\r$ echo hi") || !strings.Contains(errb, "\r> then echo more") || !strings.Contains(errb, "^C") {
+	if !strings.Contains(errb, "$ echo hi") || !strings.Contains(errb, "> then echo more") || !strings.Contains(errb, "^C") {
 		t.Errorf("prompts %q", errb)
 	}
 }
