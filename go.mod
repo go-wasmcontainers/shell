@@ -22,7 +22,7 @@ replace mvdan.cc/sh/v3 => ./third_party/mvdan-sh
 replace github.com/go-wasmcontainers/shell/wasix => ./wasix
 
 require (
-	github.com/go-wasmcontainers/engine v0.29.2
+	github.com/go-wasmcontainers/engine v0.31.0
 	github.com/go-wasmcontainers/engine/lineedit v0.1.0
 	github.com/go-wasmcontainers/shell/wasix v0.1.0
 	github.com/spf13/cobra v1.10.2
