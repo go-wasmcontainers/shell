@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/go-wasmcontainers/shell/internal/editline"
+	"github.com/go-wasmcontainers/engine/lineedit"
 	"github.com/go-wasmcontainers/shell/internal/run"
 	"mvdan.cc/sh/v3/expand"
 	"mvdan.cc/sh/v3/interp"
@@ -198,7 +198,8 @@ func (b byteReader) Read(p []byte) (int, error) {
 // the terminal cannot be switched, it falls back to the terminal's line
 // mode (the prompt printed, the bytes read as they come).
 type lineSource struct {
-	ed     *editline.Editor
+	ed     *lineedit.Reader
+	ctx    context.Context
 	term   Terminal
 	plain  io.Reader
 	stderr io.Writer
@@ -217,7 +218,7 @@ func (l *lineSource) Read(p []byte) (int, error) {
 			fmt.Fprint(l.stderr, l.prompt)
 			return l.plain.Read(p)
 		}
-		line, err := l.ed.ReadLine(l.prompt)
+		line, err := l.ed.ReadLine(l.ctx, l.prompt)
 		restore()
 		if err != nil {
 			return 0, err
@@ -244,7 +245,8 @@ func (s *Shell) interactive(ctx context.Context, o Options, env expand.Environ, 
 	var src *lineSource
 	if s.cfg.IsTTY && s.cfg.Terminal != nil {
 		src = &lineSource{
-			ed:    &editline.Editor{In: s.cfg.Stdin, Out: s.cfg.Stderr, Cols: s.cfg.Terminal.Cols},
+			ed:    &lineedit.Reader{In: s.cfg.Stdin, Out: s.cfg.Stderr, Cols: s.cfg.Terminal.Cols},
+			ctx:   ctx,
 			term:  s.cfg.Terminal,
 			plain: in, stderr: s.cfg.Stderr,
 		}
@@ -275,7 +277,7 @@ func (s *Shell) interactive(ctx context.Context, o Options, env expand.Environ, 
 		parser := syntax.NewParser()
 		failed := false
 		for stmts, err := range parser.InteractiveSeq(in) {
-			if errors.Is(err, editline.ErrInterrupt) {
+			if errors.Is(err, lineedit.ErrInterrupt) {
 				status = 130 // ^C abandons the command being typed
 				failed = true
 				break
