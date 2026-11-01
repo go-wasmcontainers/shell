@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/go-wasmcontainers/shell/internal/complete"
 	"github.com/go-wasmcontainers/shell/internal/run"
 	"github.com/go-wasmcontainers/shell/internal/shell"
 	"github.com/spf13/cobra"
@@ -61,6 +62,8 @@ func RootCmd() *cobra.Command {
 				// Redirection fds are tracked so that children do not
 				// inherit them (WASIX children inherit every open fd).
 				Open: openFile,
+				// Tab completion reads directories through the process's FS.
+				DirFS: complete.OSFS{},
 			}
 			if os.Getenv("SH_TRACE_SPAWN") != "" {
 				cfg.Trace = cmd.ErrOrStderr()

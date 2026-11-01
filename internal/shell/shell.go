@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/go-wasmcontainers/engine/lineedit"
+	"github.com/go-wasmcontainers/shell/internal/complete"
 	"github.com/go-wasmcontainers/shell/internal/run"
 	"mvdan.cc/sh/v3/expand"
 	"mvdan.cc/sh/v3/interp"
@@ -36,6 +39,10 @@ type Config struct {
 	// shell its line editor (arrow keys, history) instead of the
 	// terminal's own line mode.
 	Terminal Terminal
+	// DirFS, if set, gives the line editor Tab completion (builtins,
+	// functions and programs on PATH for a command, file names for the
+	// other words); it is how the completion reads directories.
+	DirFS complete.FS
 }
 
 // Terminal is the control of stdin's terminal the line editor needs.
@@ -230,6 +237,21 @@ func (l *lineSource) Read(p []byte) (int, error) {
 	return n, nil
 }
 
+// completer is the Tab completion of the interactive shell r: builtins,
+// functions and programs on PATH for a command, file names otherwise, read
+// from the live state of r (its PATH, its working directory, its functions)
+// at each Tab.
+func (s *Shell) completer(r *interp.Runner) *complete.Completer {
+	return &complete.Completer{
+		FS:   s.cfg.DirFS,
+		Dir:  func() string { return r.Dir },
+		Path: func() string { return r.Vars["PATH"].String() },
+		Funcs: func() []string {
+			return slices.Collect(maps.Keys(r.Funcs))
+		},
+	}
+}
+
 // interactive reads commands from stdin, one complete command at a time,
 // printing $PS1 (default "$ ") when stdin is a terminal.
 func (s *Shell) interactive(ctx context.Context, o Options, env expand.Environ, params []string) int {
@@ -244,8 +266,12 @@ func (s *Shell) interactive(ctx context.Context, o Options, env expand.Environ, 
 	var in io.Reader = byteReader{s.cfg.Stdin}
 	var src *lineSource
 	if s.cfg.IsTTY && s.cfg.Terminal != nil {
+		rd := &lineedit.Reader{In: s.cfg.Stdin, Out: s.cfg.Stderr, Cols: s.cfg.Terminal.Cols}
+		if s.cfg.DirFS != nil {
+			rd.Complete = s.completer(r).Complete
+		}
 		src = &lineSource{
-			ed:    &lineedit.Reader{In: s.cfg.Stdin, Out: s.cfg.Stderr, Cols: s.cfg.Terminal.Cols},
+			ed:    rd,
 			ctx:   ctx,
 			term:  s.cfg.Terminal,
 			plain: in, stderr: s.cfg.Stderr,

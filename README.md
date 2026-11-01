@@ -71,8 +71,21 @@ default), where pipelines through the coreutils work.
   is typed; commands run with it in line mode. Unknown keys and escape
   sequences are ignored, never inserted. Wide (CJK, emoji) and combining
   characters are counted in columns; a line wider than the screen wraps.
-  No Tab completion yet: the core has the hook, sh does not pass a
-  completer.
+- Tab completion (since v0.5.0), after bash's defaults
+  ([`internal/complete`](internal/complete)): the first word of a command
+  (and the word after `|`, `||`, `&`, `&&`, `;` or a reserved word such as
+  `then`) completes to the builtins, the shell functions, the reserved
+  words and the programs on `PATH` (a file `name` or `name.wasm`); any
+  other word, or a first word with a slash, completes to file names
+  relative to the working directory. A directory gets a trailing `/` and no
+  space; dot files appear only when the prefix starts with a dot; a name
+  with a space is quoted (`my\ file`, or inside the quote you opened).
+  Several candidates complete to their longest common prefix; a second Tab
+  lists them in columns, as bash and `wctr` do, asking first past 100.
+  Bounded: at most 4096 directory entries are scanned per directory (read
+  256 at a time, so a huge directory is never read at once), 32 `PATH`
+  directories and 1000 candidates. Not done: `~` and `$VAR`, aliases,
+  programmable completion (`complete`, `compgen`).
 - Exit statuses as POSIX says: 127 not found, 126 found but cannot run,
   128+n for a signal reported by the host.
 - Empty arguments and arguments with newlines reach the child intact
