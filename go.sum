@@ -7,8 +7,8 @@ github.com/go-regexp/engine v0.3.2 h1:zublnb1Vf5Cclh59+cp35htv2aATddBMNp5VwMAeZc
 github.com/go-regexp/engine v0.3.2/go.mod h1:fWnPvSuE4HIVpBQIHMiaPMEE7InDc00KeoPr/QNFGwA=
 github.com/go-ruby-regexp/regexp v0.1.1 h1:gqueGLmsUVVleZMzEGKax2YfpJz+aLQqdbsHp+OB3CA=
 github.com/go-ruby-regexp/regexp v0.1.1/go.mod h1:RhMJEXTJUHXcrqbnS5cVSoEfLC1SBm4G+dMkhVB96RM=
-github.com/go-wasmcontainers/engine v0.29.2 h1:sFKyVV5om/j/sYdCACtv8akvYEXH+3U6aF3O9lmo7Gc=
-github.com/go-wasmcontainers/engine v0.29.2/go.mod h1:dkn31HqTtebB2ccLhCqP6DfRoEKwqDqQEnLmIEFB75s=
+github.com/go-wasmcontainers/engine v0.31.0 h1:Abni8G2/FG2reM6PVN08h/AeSXyCaS2Q8udWqvBTbJk=
+github.com/go-wasmcontainers/engine v0.31.0/go.mod h1:cdj/Opcls0h1bviuWtty4o+Vs06mmKQhfx7JQHiXndg=
 github.com/go-wasmcontainers/engine/lineedit v0.1.0 h1:GCVxUFzuyD5WRwOMNgRuMox+TvjpkNO/5LfVYZ82Ymg=
 github.com/go-wasmcontainers/engine/lineedit v0.1.0/go.mod h1:k3V5txHVOaeqBZaPcKJ88jCUSCB7jLO1Ezl7SuFEZmQ=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
