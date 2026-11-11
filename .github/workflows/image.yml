@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
-        with: { go-version: '1.27.3' }
+        with: { go-version: '1.27.4' }
       - run: go version
       - name: build sh and coreutils for wasip1/wasm
         run: |
